@@ -2,7 +2,7 @@
 
 ## Example payload:
 
-```js
+```javascript
 {
   "user": {
     "email": "michal@bar.io",
@@ -111,7 +111,7 @@
 
 ## Code:
 
-```js
+```javascript
 if (_.get(user, "email", "n/a") !== "n/a" &&
    _.get(user, "service.id", "n/a") === "n/a") {
    const driftId = user.external_id || user.id;
@@ -121,7 +121,7 @@ if (_.get(user, "email", "n/a") !== "n/a" &&
 
 ## Example results:
 
-```js
+```javascript
 /* Touched Attributes (The one your code touches) */
 {
   "user": {
@@ -145,7 +145,7 @@ if (_.get(user, "email", "n/a") !== "n/a" &&
 
 ## Async code
 
-```js
+```javascript
 const enrichmentRequest = new Promise((resolve, reject) => {
   // options are npm request options (including url, method etc.)
   request(options, (err, response, body) => {
@@ -167,7 +167,7 @@ return enrichmentRequest.then(data => hullClient.traits(data));
 
 ## Connector processing
 
-```js
+```javascript
 app.post("/notification", (req, res) => { // whole http request is timeouted at 30 seconds
   const { messages } = req.body.notification;
 
