@@ -14,9 +14,7 @@ describe("hull-vm public API usage", () => {
       console.log("This log line was logged with log");
       console.info("This log line was logged with info");
     `;
-    return new HullVm(code).runSingle({}).then(vmResult => {
-      console.log(vmResult.logs);
-    });
+    // expect an option to inspect logs
   });
 
   /*
@@ -26,9 +24,7 @@ describe("hull-vm public API usage", () => {
     const code = `
       const test = getting.variable.from.undefined;
     `;
-    return new HullVm(code).runSingle({}).then(vmResult => {
-      console.log(vmResult.errors);
-    });
+    // expect an option to inspect errors
   });
 
   /*
@@ -40,9 +36,7 @@ describe("hull-vm public API usage", () => {
         setTimeout(resolve, 500);
       });
     `;
-    return new HullVm(code).runSingle({}).then(vmResult => {
-      console.log(vmResult.errors);
-    });
+    // expect to wait for promise resolution
   });
 
   /**
@@ -60,11 +54,7 @@ describe("hull-vm public API usage", () => {
         trait: "B"
       }
     ];
-    return new HullVm(code, { concurrency: 2 })
-      .runMultiple(payload)
-      .then(vmResults => {
-        console.log(vmResults);
-      });
+    // expect to receive an array of results
   });
 
   /*
@@ -76,11 +66,7 @@ describe("hull-vm public API usage", () => {
         setTimeout(resolve, 500);
       });
     `;
-    return new HullVm(code, { singleTimeout: 100 })
-      .runSingle({})
-      .then(vmResult => {
-        console.log(vmResult.errors);
-      });
+    // expect to be able to set a timeout
   });
 
   it("should allow to set a total timeout for script multiple executions", () => {
@@ -90,16 +76,7 @@ describe("hull-vm public API usage", () => {
       });
     `;
     const payload = [{ item: 1 }, { item: 2 }, { item: 3 }];
-    return new HullVm(code, { totalTimeout: 250, singleTimeout: 150 })
-      .runMultiple(payload)
-      .then(vmResults => {
-        // I expect that the whole promise should be resolved,
-        // first two items should be successful
-        // last item should be errored out
-        console.log(vmResults[0].errors);
-        console.log(vmResults[1].errors);
-        console.log(vmResults[2].errors);
-      });
+    // expect to be able to set a total timeout for all payloads
   });
 
   /*
@@ -120,13 +97,7 @@ describe("hull-vm public API usage", () => {
       console.log(customModule.counter);
     `;
     const payload = [{}, {}, {}];
-    return new HullVm(code, { context: { customModule } })
-      .runMultiple(payload)
-      .then(vmResults => {
-        console.log(vmResults[0].logs);
-        console.log(vmResults[1].logs);
-        console.log(vmResults[2].logs);
-      });
+    // expect that the customModule yielded the same result
   });
 
   it("should allow to use additional 'runtime' context", () => {
@@ -153,10 +124,6 @@ describe("hull-vm public API usage", () => {
         customModule: new CustomModule(3)
       }
     ];
-    return new HullVm(code).runMultiple(payload).then(vmResults => {
-      console.log(vmResults[0].logs);
-      console.log(vmResults[1].logs);
-      console.log(vmResults[2].logs);
-    });
+    // expect that the custom module counter have other values in each case
   });
 });
