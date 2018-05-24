@@ -114,8 +114,8 @@
 ```javascript
 if (_.get(user, "email", "n/a") !== "n/a" &&
    _.get(user, "service.id", "n/a") === "n/a") {
-   const driftId = user.external_id || user.id;
-   hullClient.traits({ "service/id": driftId });
+   const serviceId = user.external_id || user.id;
+   hullClient.traits({ "service/id": serviceId });
 }
 ```
 
