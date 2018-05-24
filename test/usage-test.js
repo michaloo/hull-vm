@@ -6,17 +6,22 @@
 const HullVm = require("../src");
 
 describe("hull-vm public API usage", () => {
+  /*
+   *** Logging ***
+   */
   it("should allow to log stuff through console.log and console.info", () => {
     const code = `
-      console.log("This log line is shown in preview, but not in the 'actual' run");
-      console.info("This log line is shown both in preview and in the 'actual' run");
+      console.log("This log line was logged with log");
+      console.info("This log line was logged with info");
     `;
-    // normal mode
     return new HullVm(code).runSingle({}).then(vmResult => {
       console.log(vmResult.logs);
     });
   });
 
+  /*
+   *** Errors handling ***
+   */
   it("should handle errors and exceptions", () => {
     const code = `
       const test = getting.variable.from.undefined;
@@ -26,6 +31,9 @@ describe("hull-vm public API usage", () => {
     });
   });
 
+  /*
+   *** Async operations ***
+   */
   it("should allow to perform an async operation", () => {
     const code = `
       return new Promise((resolve) => {
@@ -37,6 +45,9 @@ describe("hull-vm public API usage", () => {
     });
   });
 
+  /**
+   *** Multiple items ***
+   */
   it("should allow to run multiple items at once, with configured concurrency", () => {
     const code = `
       console.log(user.trait);
@@ -56,6 +67,9 @@ describe("hull-vm public API usage", () => {
       });
   });
 
+  /*
+   *** Timeouts ***
+   */
   it("should allow to set a timeout for script execution", () => {
     const code = `
       return new Promise((resolve) => {
@@ -88,7 +102,10 @@ describe("hull-vm public API usage", () => {
       });
   });
 
-  it("should allow to use additional 'global' modules", () => {
+  /*
+   *** Context ***
+   */
+  it("should allow to use additional context modules", () => {
     // each time this customModule should be available to
     // the script in the very same state
     // It needs to be frozen to avoid mutation
@@ -103,7 +120,7 @@ describe("hull-vm public API usage", () => {
       console.log(customModule.counter);
     `;
     const payload = [{}, {}, {}];
-    return new HullVm(code, { globalModules: { customModule } })
+    return new HullVm(code, { context: { customModule } })
       .runMultiple(payload)
       .then(vmResults => {
         console.log(vmResults[0].logs);
@@ -112,7 +129,7 @@ describe("hull-vm public API usage", () => {
       });
   });
 
-  it("should allow to use additional 'runtime' modules", () => {
+  it("should allow to use additional 'runtime' context", () => {
     class CustomModule {
       constructor(initialCounterValue = 0) {
         this.counter = initialCounterValue;
