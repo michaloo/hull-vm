@@ -20,7 +20,13 @@
     "npm": "5.6.x",
     "yarn": "1.6.x"
   },
-  "dependencies": {},
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "clone-deep": "^4.0.0",
+    "debug": "^3.1.0",
+    "ms": "^2.1.1",
+    "vm2": "^3.6.0"
+  },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",

@@ -3,6 +3,8 @@
  * Also shows the requirements for the library
  */
 
+const Promise = require("bluebird");
+
 const HullVm = require("../src");
 
 describe("hull-vm public API usage", () => {
@@ -14,8 +16,14 @@ describe("hull-vm public API usage", () => {
       console.log("This log line was logged with log");
       console.info("This log line was logged with info");
     `;
-    return new HullVm(code).runSingle({}).then(vmResult => {
-      console.log(vmResult.logs);
+    return new HullVm(code).run().then(vmResult => {
+      expect(vmResult.logs).toEqual([
+        { level: "log", data: ["This log line was logged with log"] },
+        {
+          level: "info",
+          data: ["This log line was logged with info"]
+        }
+      ]);
     });
   });
 
@@ -26,8 +34,36 @@ describe("hull-vm public API usage", () => {
     const code = `
       const test = getting.variable.from.undefined;
     `;
-    return new HullVm(code).runSingle({}).then(vmResult => {
-      console.log(vmResult.errors);
+    return new HullVm(code).run().then(vmResult => {
+      expect(vmResult.error.toString()).toEqual(
+        "ReferenceError: getting is not defined"
+      );
+    });
+  });
+
+  it("should not allow to return a class instance", () => {
+    const code = `
+      class Test {
+        constructor() {
+          this.counter = 1;
+        }
+        inc(value = 1) {
+          return this.counter += value;
+        }
+      }
+      return new Test();
+    `;
+    return new HullVm(code, { timeout: 100 }).run().then(vmResult => {
+      expect(vmResult.error.message).toEqual("Script execution timed out.");
+    });
+  });
+
+  it("should allow to return a function", () => {
+    const code = `
+      return () => {}
+    `;
+    return new HullVm(code).run().then(vmResult => {
+      expect(typeof vmResult.result).toEqual("function");
     });
   });
 
@@ -37,33 +73,34 @@ describe("hull-vm public API usage", () => {
   it("should allow to perform an async operation", () => {
     const code = `
       return new Promise((resolve) => {
-        setTimeout(resolve, 500);
+        setTimeout(() => resolve("foo"), 500);
       });
     `;
-    return new HullVm(code).runSingle({}).then(vmResult => {
-      console.log(vmResult.errors);
-    });
+    return new HullVm(code, { context: { setTimeout } })
+      .run()
+      .then(vmResult => {
+        expect(vmResult.result).toEqual("foo");
+      });
   });
 
-  /**
-   *** Multiple items ***
-   */
-  it("should allow to run multiple items at once, with configured concurrency", () => {
+  it("should allow to perform a 'cancellable' async operation", () => {
     const code = `
-      console.log(user.trait);
+      return new Promise((resolve, reject, onCancel) => {
+        setTimeout(() => resolve("foo"), 500);
+        onCancel(() => {
+          console.log("internal cancel");
+        })
+      });
     `;
-    const payload = [
-      {
-        trait: "A"
-      },
-      {
-        trait: "B"
-      }
-    ];
-    return new HullVm(code, { concurrency: 2 })
-      .runMultiple(payload)
-      .then(vmResults => {
-        console.log(vmResults);
+    return new HullVm(code, { timeout: 10, context: { setTimeout } })
+      .run()
+      .then(vmResult => {
+        expect(vmResult.error.message).toEqual(
+          "Script timeouted and cancelled"
+        );
+        expect(vmResult.logs).toEqual([
+          { level: "log", data: ["internal cancel"] }
+        ]);
       });
   });
 
@@ -76,29 +113,12 @@ describe("hull-vm public API usage", () => {
         setTimeout(resolve, 500);
       });
     `;
-    return new HullVm(code, { singleTimeout: 100 })
-      .runSingle({})
+    return new HullVm(code, { timeout: 100, context: { setTimeout } })
+      .run()
       .then(vmResult => {
-        console.log(vmResult.errors);
-      });
-  });
-
-  it("should allow to set a total timeout for script multiple executions", () => {
-    const code = `
-      return new Promise((resolve) => {
-        setTimeout(resolve, item * 100);
-      });
-    `;
-    const payload = [{ item: 1 }, { item: 2 }, { item: 3 }];
-    return new HullVm(code, { totalTimeout: 250, singleTimeout: 150 })
-      .runMultiple(payload)
-      .then(vmResults => {
-        // I expect that the whole promise should be resolved,
-        // first two items should be successful
-        // last item should be errored out
-        console.log(vmResults[0].errors);
-        console.log(vmResults[1].errors);
-        console.log(vmResults[2].errors);
+        expect(vmResult.error.message).toEqual(
+          "Script timeouted and cancelled"
+        );
       });
   });
 
@@ -112,21 +132,28 @@ describe("hull-vm public API usage", () => {
     const customModule = {
       counter: 0,
       inc: function inc(value = 1) {
-        this.counter += value;
+        this.counter = this.counter + value;
       }
     };
     const code = `
       customModule.inc();
       console.log(customModule.counter);
+      customModule.inc = function() {
+        this.counter = 10;
+      }
+      return customModule.counter;
     `;
     const payload = [{}, {}, {}];
-    return new HullVm(code, { context: { customModule } })
-      .runMultiple(payload)
-      .then(vmResults => {
-        console.log(vmResults[0].logs);
-        console.log(vmResults[1].logs);
-        console.log(vmResults[2].logs);
-      });
+    const vm = new HullVm(code, { context: { customModule } });
+    return Promise.map(payload, p => vm.run(p)).then(vmResults => {
+      expect(vmResults[0].logs[0].data).toEqual([1]);
+      expect(vmResults[1].logs[0].data).toEqual([1]);
+      expect(vmResults[2].logs[0].data).toEqual([1]);
+
+      expect(vmResults[0].result).toEqual(1);
+      expect(vmResults[1].result).toEqual(1);
+      expect(vmResults[2].result).toEqual(1);
+    });
   });
 
   it("should allow to use additional 'runtime' context", () => {
@@ -139,24 +166,61 @@ describe("hull-vm public API usage", () => {
       }
     }
     const code = `
+      console.log("preChange", customModule.counter);
       customModule.inc();
-      console.log(customModule.counter);
+      console.log("postChange", customModule.counter);
+      return customModule;
     `;
     const payload = [
       {
         customModule: new CustomModule(1)
       },
       {
-        customModule: new CustomModule(2)
+        customModule: new CustomModule(5)
       },
       {
-        customModule: new CustomModule(3)
+        customModule: new CustomModule(2)
       }
     ];
-    return new HullVm(code).runMultiple(payload).then(vmResults => {
-      console.log(vmResults[0].logs);
-      console.log(vmResults[1].logs);
-      console.log(vmResults[2].logs);
+    const vm = new HullVm(code);
+    return Promise.map(payload, p => vm.run(p)).then(vmResults => {
+      expect(vmResults[0].result).toEqual(payload[0].customModule);
+      expect(vmResults[0].result).not.toEqual(payload[1].customModule);
+      expect(vmResults[0].result.counter).toEqual(2);
+      expect(vmResults[0].logs).toEqual([
+        { level: "log", data: ["preChange", 1] },
+        { level: "log", data: ["postChange", 2] }
+      ]);
+
+      expect(vmResults[1].result).toEqual(payload[1].customModule);
+      expect(vmResults[1].result.counter).toEqual(6);
+      expect(vmResults[1].logs).toEqual([
+        { level: "log", data: ["preChange", 5] },
+        { level: "log", data: ["postChange", 6] }
+      ]);
+
+      expect(vmResults[2].result).toEqual(payload[2].customModule);
+      expect(vmResults[2].result.counter).toEqual(3);
+      expect(vmResults[2].logs).toEqual([
+        { level: "log", data: ["preChange", 2] },
+        { level: "log", data: ["postChange", 3] }
+      ]);
+    });
+  });
+
+  it("should not allow to execute process level commands", () => {
+    const code = "this.constructor.constructor('return process')().exit()";
+    const vm = new HullVm(code);
+    return vm.run().then(vmResult => {
+      expect(vmResult.error.message).toEqual("process is not defined");
+    });
+  });
+
+  it("should not allow to execute endless loop", () => {
+    const code = "while(true) { }";
+    const vm = new HullVm(code, { timeout: 100 });
+    return vm.run().then(vmResult => {
+      expect(vmResult.error.message).toEqual("Script execution timed out.");
     });
   });
 });
