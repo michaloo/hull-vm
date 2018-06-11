@@ -7,8 +7,8 @@ const deepFreeze = require("deep-freeze");
 const cloneDeep = require("clone-deep");
 
 export type HullVmOptions = {
-  timeout: string | number,
-  context: Object
+  timeout?: string | number,
+  context?: Object
 };
 
 export type HullVmResult = {
@@ -31,12 +31,10 @@ Promise.config({
  * - passing additional modules which should be frozen
  */
 class HullVm {
-  code: string;
   options: HullVmOptions;
   userScript: (Array<Object>, Object) => Promise<*>;
 
-  constructor(code: string, options: ?HullVmOptions) {
-    this.code = code;
+  constructor(code: string, options: ?HullVmOptions = {}) {
     this.options = {
       context: {},
       timeout: "5s",
@@ -104,7 +102,7 @@ class HullVm {
         let errorMessage = "Script timeouted";
         if (promise.cancel) {
           promise.cancel("timeout");
-          errorMessage = "Script timeouted and cancelled";
+          errorMessage = "Script timedout and cancelled";
         }
         return resolve({
           result: null,

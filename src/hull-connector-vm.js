@@ -7,6 +7,10 @@ const urijs = require("urijs");
 const superagent = require("superagent");
 const Promise = require("bluebird");
 
+Promise.config({
+  cancellation: true
+});
+
 const HullVm = require("./hull-vm");
 
 class HullConnectorVm extends HullVm {
@@ -15,12 +19,14 @@ class HullConnectorVm extends HullVm {
       // force superagent to return bluebird Promise all the time
       // and support cancelling the request
       const originalThen = request.then;
-      request.then = function then(resolve, reject, onCancel) {
+      const promise = new Promise((resolve, reject, onCancel) => {
         onCancel(() => {
           request.abort();
         });
-        return Promise.resolve(originalThen.call(request, resolve, reject));
-      };
+        originalThen.call(request, resolve, reject);
+      });
+      request.then = promise.then.bind(promise);
+      request.catch = promise.catch.bind(promise);
     });
 
     options = options || {};

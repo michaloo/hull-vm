@@ -96,9 +96,7 @@ describe("hull-vm API usage", () => {
     return new HullVm(code, { timeout: 10, context: { setTimeout } })
       .run()
       .then(vmResult => {
-        expect(vmResult.error.message).toEqual(
-          "Script timeouted and cancelled"
-        );
+        expect(vmResult.error.message).toEqual("Script timedout and cancelled");
         expect(vmResult.logs).toEqual([
           { level: "log", data: ["internal cancel"] }
         ]);
@@ -117,9 +115,7 @@ describe("hull-vm API usage", () => {
     return new HullVm(code, { timeout: 100, context: { setTimeout } })
       .run()
       .then(vmResult => {
-        expect(vmResult.error.message).toEqual(
-          "Script timeouted and cancelled"
-        );
+        expect(vmResult.error.message).toEqual("Script timedout and cancelled");
       });
   });
 
