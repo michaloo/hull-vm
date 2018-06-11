@@ -249,6 +249,27 @@ describe("hull-vm API usage", () => {
     });
   });
 
+  it("should not allow for different vectors of attack", () => {
+    const code = `
+      function exploit(o) {
+        const foreignFunction = o.constructor.constructor;
+        const process = foreignFunction("return process")();
+        const require = process.mainModule.require;
+        const fs = require("fs");
+
+        return fs.statSync(".");
+      }
+      try {
+        nonExistingFunction();
+      } catch (e) {
+        return exploit(e);
+      }
+    `;
+    return new HullVm(code).run().then(vmResult => {
+      expect(vmResult.error.message).toEqual("process is not defined");
+    });
+  });
+
   it.skip("should not allow to execute endless loop", () => {
     const code = "while(true) { }";
     const vm = new HullVm(code, { timeout: 100 });

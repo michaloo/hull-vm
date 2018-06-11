@@ -35,6 +35,17 @@ describe("hull-connector-vm API usage", () => {
     });
   });
 
+  it("should prevent changing functions", () => {
+    const code = `
+      const test = _.camelCase("Foo Bar");
+      _.camelCase = () => "xyz"
+      return test;
+    `;
+    return new HullConnectorVm(code).run().then(vmResult => {
+      expect(vmResult.result).toEqual("fooBar");
+    });
+  });
+
   describe("superagent", () => {
     it("should come with superagent out of the box", () => {
       nock("http://example.com")

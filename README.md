@@ -3,9 +3,10 @@
 This is an unified VM runtime for running customer scripts.
 
 ```js
+const HullConnectorVm = require("hull-vm/lib/hull-connector-vm");
 // First initialize the VM
 // do it once per script and context
-const vm = new HullVm(`
+const vm = new HullConnectorVm(`
   console.log(user.traits_coconuts);
 `);
 
