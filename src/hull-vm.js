@@ -6,12 +6,12 @@ const ms = require("ms");
 const deepFreeze = require("deep-freeze");
 const cloneDeep = require("clone-deep");
 
-type HullVmOptions = {
+export type HullVmOptions = {
   timeout: string | number,
   context: Object
 };
 
-type HullVmResult = {
+export type HullVmResult = {
   logs: Array<{ level: string, data: Object }>, // items logged by console.*
   error: mixed, // error caused by running the script
   result: mixed // things returned by the script
