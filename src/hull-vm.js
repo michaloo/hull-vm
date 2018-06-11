@@ -1,9 +1,9 @@
 // @flow
 const Promise = require("bluebird");
-const { VMScript, VM } = require("vm2");
+const vm = require("vm");
 const debug = require("debug")("hull-vm");
 const ms = require("ms");
-// const deepFreeze = require("deep-freeze");
+const deepFreeze = require("deep-freeze");
 const cloneDeep = require("clone-deep");
 
 type HullVmOptions = {
@@ -27,40 +27,58 @@ Promise.config({
  * Is responsible for handling
  * - console.* methods
  * - async scripts - returning a Promise
- * - multiple async items
- * - timeouts for both single payload item and for total execution time
+ * - timeouts
  * - passing additional modules which should be frozen
  */
 class HullVm {
   code: string;
-  globalContext: Object;
   options: HullVmOptions;
-  vmScript: VMScript;
+  userScript: (Array<Object>, Object) => Promise<*>;
 
   constructor(code: string, options: ?HullVmOptions) {
-    // console.log(esprima.tokenize(code).indexOf({ type: 'Keyword', value: 'class' }));
     this.code = code;
     this.options = {
       context: {},
       timeout: "5s",
       ...options
     };
-    this.globalContext = {
-      ...this.options.context,
-      Promise
-    };
-    this.vmScript = new VMScript(this.wrapCode(code));
+
+    const context = Object.assign(
+      vm.createContext(vm.runInNewContext("({})")),
+      {
+        Promise: cloneDeep(Promise),
+        ...deepFreeze(this.options.context)
+      }
+    );
+
+    const timeout =
+      typeof this.options.timeout === "number"
+        ? this.options.timeout
+        : ms(this.options.timeout);
+
+    debug("timeout", timeout);
+    this.userScript = vm.runInContext(this.wrapCode(code), context, {
+      timeout
+    });
   }
 
   wrapCode(code: string): string {
     return `
-    try {
-      Promise.resolve(function() {
-        ${code};
-      }());
-    } catch (rawError) {
-      Promise.reject(rawError);
-    }`;
+    (function(logs, payload) {
+      const console = ["log", "info", "debug", "warn", "error"]
+        .reduce((obj, level) => {
+            obj[level] = (...data) => logs.push({ level, data });
+            return obj;
+        }, {});
+      try {
+        return Promise.resolve(function() {
+          ${code};
+        }());
+      } catch (rawError) {
+        return Promise.reject(rawError);
+      }
+    });
+    `;
   }
 
   run(runtimeContext: Object = {}): Promise<HullVmResult> {
@@ -69,28 +87,11 @@ class HullVm {
         ? this.options.timeout
         : ms(this.options.timeout);
     const logs = [];
-    const context = {
-      console: {
-        log: (...data) => logs.push({ level: "log", data }),
-        info: (...data) => logs.push({ level: "info", data })
-      },
-      logs,
-      ...cloneDeep(this.globalContext),
-      ...runtimeContext
-    };
-    const vmOptions = {
-      timeout,
-      console: "off",
-      sandbox: context,
-      wrapper: "none"
-    };
-    debug("prerun", vmOptions);
-    const vm = new VM(vmOptions);
 
     return new Promise((resolve, reject) => {
       let promise;
       try {
-        promise = vm.run(this.vmScript);
+        promise = this.userScript(logs, runtimeContext);
       } catch (error) {
         return resolve({
           logs,

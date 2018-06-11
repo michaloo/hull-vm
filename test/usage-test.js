@@ -5,7 +5,7 @@
 
 const Promise = require("bluebird");
 
-const HullVm = require("../src");
+const HullVm = require("../src/hull-vm");
 
 describe("hull-vm public API usage", () => {
   /*
@@ -41,7 +41,7 @@ describe("hull-vm public API usage", () => {
     });
   });
 
-  it("should not allow to return a class instance", () => {
+  it("should allow to return a class instance", () => {
     const code = `
       class Test {
         constructor() {
@@ -54,7 +54,8 @@ describe("hull-vm public API usage", () => {
       return new Test();
     `;
     return new HullVm(code, { timeout: 100 }).run().then(vmResult => {
-      expect(vmResult.error.message).toEqual("Script execution timed out.");
+      expect(vmResult.result.constructor.name).toEqual("Test");
+      expect(vmResult.result.counter).toEqual(1);
     });
   });
 
@@ -125,7 +126,43 @@ describe("hull-vm public API usage", () => {
   /*
    *** Context ***
    */
-  it("should allow to use additional context modules", () => {
+  it("should allow to use global context modules", () => {
+    // each time this customModule should be available to
+    // the script in the very same state
+    // It needs to be frozen to avoid mutation
+    const customModule = {
+      inc: function inc(value = 1) {
+        return value + 1;
+      }
+    };
+    const code = `
+      let test = customModule.inc();
+      console.log(test);
+      test = customModule.inc(test);
+      console.log(test);
+      customModule.inc = function() {
+        return 10;
+      }
+      return test;
+    `;
+    const payload = [{}, {}, {}];
+    const vm = new HullVm(code, { context: { customModule } });
+    return Promise.map(payload, p => vm.run(p)).then(vmResults => {
+      expect(vmResults[0].logs[0].data).toEqual([2]);
+      expect(vmResults[0].logs[1].data).toEqual([3]);
+      expect(vmResults[0].result).toEqual(3);
+
+      expect(vmResults[1].logs[0].data).toEqual([2]);
+      expect(vmResults[1].logs[1].data).toEqual([3]);
+      expect(vmResults[1].result).toEqual(3);
+
+      expect(vmResults[2].logs[0].data).toEqual([2]);
+      expect(vmResults[2].logs[1].data).toEqual([3]);
+      expect(vmResults[2].result).toEqual(3);
+    });
+  });
+
+  it("should not allow any global context object to mutate itself", () => {
     // each time this customModule should be available to
     // the script in the very same state
     // It needs to be frozen to avoid mutation
@@ -146,17 +183,17 @@ describe("hull-vm public API usage", () => {
     const payload = [{}, {}, {}];
     const vm = new HullVm(code, { context: { customModule } });
     return Promise.map(payload, p => vm.run(p)).then(vmResults => {
-      expect(vmResults[0].logs[0].data).toEqual([1]);
-      expect(vmResults[1].logs[0].data).toEqual([1]);
-      expect(vmResults[2].logs[0].data).toEqual([1]);
+      expect(vmResults[0].logs[0].data).toEqual([0]);
+      expect(vmResults[1].logs[0].data).toEqual([0]);
+      expect(vmResults[2].logs[0].data).toEqual([0]);
 
-      expect(vmResults[0].result).toEqual(1);
-      expect(vmResults[1].result).toEqual(1);
-      expect(vmResults[2].result).toEqual(1);
+      expect(vmResults[0].result).toEqual(0);
+      expect(vmResults[1].result).toEqual(0);
+      expect(vmResults[2].result).toEqual(0);
     });
   });
 
-  it("should allow to use additional 'runtime' context", () => {
+  it("should allow to use function paylod", () => {
     class CustomModule {
       constructor(initialCounterValue = 0) {
         this.counter = initialCounterValue;
@@ -166,10 +203,10 @@ describe("hull-vm public API usage", () => {
       }
     }
     const code = `
-      console.log("preChange", customModule.counter);
-      customModule.inc();
-      console.log("postChange", customModule.counter);
-      return customModule;
+      console.log("preChange", payload.customModule.counter);
+      payload.customModule.inc();
+      console.log("postChange", payload.customModule.counter);
+      return payload.customModule;
     `;
     const payload = [
       {
@@ -216,7 +253,7 @@ describe("hull-vm public API usage", () => {
     });
   });
 
-  it("should not allow to execute endless loop", () => {
+  it.skip("should not allow to execute endless loop", () => {
     const code = "while(true) { }";
     const vm = new HullVm(code, { timeout: 100 });
     return vm.run().then(vmResult => {

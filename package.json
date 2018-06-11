@@ -1,8 +1,8 @@
 {
   "name": "hull-vm",
-  "version": "0.1.2",
+  "version": "0.1.0",
   "description": "A Nodejs VM to run custom JS scripts",
-  "main": "lib/index.js",
+  "main": "lib/hull-vm.js",
   "scripts": {
     "build": "rimraf dist && babel src -d lib",
     "test": "npm run test:lint && npm run test:unit",
@@ -24,8 +24,8 @@
     "bluebird": "^3.5.1",
     "clone-deep": "^4.0.0",
     "debug": "^3.1.0",
-    "ms": "^2.1.1",
-    "vm2": "^3.6.0"
+    "deep-freeze": "0.0.1",
+    "ms": "^2.1.1"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
