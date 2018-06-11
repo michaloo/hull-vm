@@ -10,7 +10,7 @@ const Promise = require("bluebird");
 const HullVm = require("./hull-vm");
 
 class HullConnectorVm extends HullVm {
-  constructor(code: string, options: HullVmOptions) {
+  constructor(code: string, options: ?HullVmOptions) {
     const agent = superagent.agent().use(request => {
       // force superagent to return bluebird Promise all the time
       // and support cancelling the request
@@ -23,6 +23,7 @@ class HullConnectorVm extends HullVm {
       };
     });
 
+    options = options || {};
     options.context = {
       ...options.context,
       _,

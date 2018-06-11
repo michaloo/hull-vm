@@ -7,7 +7,7 @@ const Promise = require("bluebird");
 
 const HullVm = require("../src/hull-vm");
 
-describe("hull-vm public API usage", () => {
+describe("hull-vm API usage", () => {
   /*
    *** Logging ***
    */
