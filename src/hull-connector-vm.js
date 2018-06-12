@@ -2,10 +2,12 @@
 import type { HullVmOptions } from "./hull-vm";
 
 const _ = require("lodash");
+// const crypto = require("crypto");
 const moment = require("moment");
-const urijs = require("urijs");
-const superagent = require("superagent");
 const Promise = require("bluebird");
+// const rp = require("request-promise");
+const superagent = require("superagent");
+const urijs = require("urijs");
 
 Promise.config({
   cancellation: true
@@ -14,7 +16,11 @@ Promise.config({
 const HullVm = require("./hull-vm");
 
 class HullConnectorVm extends HullVm {
-  constructor(code: string, options: ?HullVmOptions) {
+  constructor(
+    code: string,
+    providedContext: ?Object = {},
+    options: ?HullVmOptions = {}
+  ) {
     const agent = superagent.agent().use(request => {
       // force superagent to return bluebird Promise all the time
       // and support cancelling the request
@@ -27,17 +33,20 @@ class HullConnectorVm extends HullVm {
       });
       request.then = promise.then.bind(promise);
       request.catch = promise.catch.bind(promise);
+      request.cancel = promise.cancel.bind(promise);
     });
 
-    options = options || {};
-    options.context = {
-      ...options.context,
+    providedContext = {
+      ...(providedContext || {}),
       _,
       moment,
       urijs,
       superagent: agent
+      // TODO: crypto and rp are not friendly with deepFreeze
+      // crypto,
+      // rp
     };
-    super(code, options);
+    super(code, providedContext, options);
   }
 
   wrapCode(code: string): string {

@@ -7,8 +7,7 @@ const deepFreeze = require("deep-freeze");
 const cloneDeep = require("clone-deep");
 
 export type HullVmOptions = {
-  timeout?: string | number,
-  context?: Object
+  timeout?: string | number
 };
 
 export type HullVmResult = {
@@ -34,9 +33,16 @@ class HullVm {
   options: HullVmOptions;
   userScript: (Array<Object>, Object) => Promise<*>;
 
-  constructor(code: string, options: ?HullVmOptions = {}) {
+  constructor(
+    code: string,
+    providedContext: ?Object = {},
+    options: ?HullVmOptions = {}
+  ) {
+    if (typeof code !== "string") {
+      throw new Error(`Provided code must be a string, ${typeof code} given.`);
+    }
+    debug("options", options);
     this.options = {
-      context: {},
       timeout: "5s",
       ...options
     };
@@ -45,9 +51,10 @@ class HullVm {
       vm.createContext(vm.runInNewContext("({})")),
       {
         Promise: cloneDeep(Promise),
-        ...deepFreeze(this.options.context)
+        ...deepFreeze(providedContext || {})
       }
     );
+    debug("built context");
 
     const timeout =
       typeof this.options.timeout === "number"
@@ -58,6 +65,7 @@ class HullVm {
     this.userScript = vm.runInContext(this.wrapCode(code), context, {
       timeout
     });
+    debug("run userScript");
   }
 
   wrapCode(code: string): string {
@@ -99,7 +107,7 @@ class HullVm {
       }
       setTimeout(() => {
         debug("timeout");
-        let errorMessage = "Script timeouted";
+        let errorMessage = "Script timedout";
         if (promise.cancel) {
           promise.cancel("timeout");
           errorMessage = "Script timedout and cancelled";

@@ -84,7 +84,7 @@ describe("hull-connector-vm API usage", () => {
       const code = `
         return superagent.get("http://example.com/test")
       `;
-      return new HullConnectorVm(code, { timeout: 100 })
+      return new HullConnectorVm(code, {}, { timeout: 100 })
         .run()
         .then(vmResult => {
           expect(vmResult.error.message).toEqual(
@@ -102,7 +102,7 @@ describe("hull-connector-vm API usage", () => {
           return superagent.get("http://example.com/test")
         }, 100);
       `;
-      const promise = new HullConnectorVm(code, { timeout: 100 }).run();
+      const promise = new HullConnectorVm(code, {}, { timeout: 100 }).run();
 
       setTimeout(() => {
         promise.cancel();

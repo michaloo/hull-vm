@@ -9,6 +9,18 @@ const HullVm = require("../src/hull-vm");
 
 describe("hull-vm API usage", () => {
   /*
+   *** Options handling ***
+   */
+  it("should not allow to pass non string code param", () => {
+    expect(() => {
+      return new HullVm({ foo: "bar" });
+    }).toThrow("Provided code must be a string, object given.");
+    expect(() => {
+      return new HullVm(() => {});
+    }).toThrow("Provided code must be a string, function given.");
+  });
+
+  /*
    *** Logging ***
    */
   it("should allow to log stuff through console.log and console.info", () => {
@@ -77,7 +89,7 @@ describe("hull-vm API usage", () => {
         setTimeout(() => resolve("foo"), 500);
       });
     `;
-    return new HullVm(code, { context: { setTimeout } })
+    return new HullVm(code, { setTimeout })
       .run()
       .then(vmResult => {
         expect(vmResult.result).toEqual("foo");
@@ -93,7 +105,7 @@ describe("hull-vm API usage", () => {
         })
       });
     `;
-    return new HullVm(code, { timeout: 10, context: { setTimeout } })
+    return new HullVm(code, { setTimeout }, { timeout: 10 })
       .run()
       .then(vmResult => {
         expect(vmResult.error.message).toEqual("Script timedout and cancelled");
@@ -112,7 +124,7 @@ describe("hull-vm API usage", () => {
         setTimeout(resolve, 500);
       });
     `;
-    return new HullVm(code, { timeout: 100, context: { setTimeout } })
+    return new HullVm(code, { setTimeout }, { timeout: 100 })
       .run()
       .then(vmResult => {
         expect(vmResult.error.message).toEqual("Script timedout and cancelled");
@@ -142,7 +154,7 @@ describe("hull-vm API usage", () => {
       return test;
     `;
     const payload = [{}, {}, {}];
-    const vm = new HullVm(code, { context: { customModule } });
+    const vm = new HullVm(code, { customModule });
     return Promise.map(payload, p => vm.run(p)).then(vmResults => {
       expect(vmResults[0].logs[0].data).toEqual([2]);
       expect(vmResults[0].logs[1].data).toEqual([3]);
@@ -177,7 +189,7 @@ describe("hull-vm API usage", () => {
       return customModule.counter;
     `;
     const payload = [{}, {}, {}];
-    const vm = new HullVm(code, { context: { customModule } });
+    const vm = new HullVm(code, { customModule });
     return Promise.map(payload, p => vm.run(p)).then(vmResults => {
       expect(vmResults[0].logs[0].data).toEqual([0]);
       expect(vmResults[1].logs[0].data).toEqual([0]);
